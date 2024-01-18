@@ -4,7 +4,7 @@ Along with the class, a Python script optimizingScript.py executes the optimizat
 
 The figure sensorLocations_ignitionLocations.png represents the ignition locations for wildfire simulations (x) and the possible sensor locations (o). The domain use to test this methodology corresponds to the case study computed for the previous paper.
 
-https://github.com/juanlu29/fire-sensor-optimizer/blob/main/sensorLocations_ignitionLocations.png?raw=true
+![alt text](https://github.com/juanlu29/fire-sensor-optimizer/blob/main/sensorLocations_ignitionLocations.png?raw=true)
 
 Each wildfire is simulated 5 hours. The optimization routine selects sensor configurations minimizing arrival time or wildfire burned areas at sensor detection.
 
