@@ -9,3 +9,7 @@ The figure sensorLocations_ignitionLocations.png represents the ignition locatio
 Each wildfire is simulated 5 hours. The optimization routine selects sensor configurations minimizing arrival time or wildfire burned areas at sensor detection.
 
 To run this example, a series of Python libraries are needed. The environment.yml replicates the conda environement in which this optimization is performed. 
+
+If everything goes fine, the parete front should be displayed
+
+![alt text](https://github.com/juanlu29/fire-sensor-optimizer/blob/main/testParetoFront.png?raw=true)
