@@ -12,4 +12,4 @@ To run this example, a series of Python libraries are needed. The environment.ym
 
 If everything goes fine, the parete front should be displayed
 
-![alt text](https://github.com/juanlu29/fire-sensor-optimizer/blob/main/testParetoFront.png?raw=true)
+![alt text](https://github.com/juanlu29/fire-sensor-optimizer/blob/main/paretoPerformance.png?raw=true)
