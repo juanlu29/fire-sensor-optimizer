@@ -3,6 +3,44 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import sensorProblemClass as so
+import sensorFunctions as sf
+from pymoo.core.callback import Callback
+import sys
+import pickle
+from pymoo.termination.ftol import MultiObjectiveSpaceTermination
+from pymoo.termination.robust import RobustTermination
+from pymoo.termination.default import DefaultMultiObjectiveTermination
+
+class MyCallback(Callback):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.data["best"] = []
+        self.data["n_iter"] = []
+        self.data["sols"] = []
+        self.data["iters"] = []
+
+    def notify(self, algorithm):
+        self.data["iters"].append(algorithm.n_iter)
+        if algorithm.n_iter <= 10: 
+            self.data["best"].append(algorithm.pop.get("F"))
+            self.data["n_iter"].append(algorithm.n_iter)
+            self.data["sols"].append(algorithm.pop.get("X"))
+        if (algorithm.n_iter > 10) and (algorithm.n_iter < 500):
+            if algorithm.n_iter%50 == 0:
+                self.data["best"].append(algorithm.pop.get("F"))
+                self.data["n_iter"].append(algorithm.n_iter)
+                self.data["sols"].append(algorithm.pop.get("X"))     
+        if (algorithm.n_iter > 500) and (algorithm.n_iter < 1000):
+            if algorithm.n_iter%100 == 0:
+                self.data["best"].append(algorithm.pop.get("F"))
+                self.data["n_iter"].append(algorithm.n_iter)
+                self.data["sols"].append(algorithm.pop.get("X"))  
+        if (algorithm.n_iter > 1000): 
+            if algorithm.n_iter%500 == 0:
+                self.data["best"].append(algorithm.pop.get("F"))
+                self.data["n_iter"].append(algorithm.n_iter)
+                self.data["sols"].append(algorithm.pop.get("X"))
 
 def sortingComputation(nig,ns,magnitude2sort): 
     '''
@@ -36,6 +74,20 @@ def sortingComputation(nig,ns,magnitude2sort):
     return orderedSensor2Detect
 
 
+def burnedArea2file(fires,j,time):
+    # Computes the  area per fire for a given time and saves the information to a txt file
+
+    areas = np.zeros(len(fires),dtype=int)
+    i = 0
+    for fire in fires:
+        areas[i] = len(fire[(fire>0.) & (fire<time)])
+        i += 1
+
+    # Write to a file
+    np.savetxt(f'maxAreas_wind_{j}_time_{time}',areas,fmt='%d')
+
+    return
+
 
 def burnedAtSensorLocation(fires,validIgnitions,validSensors,nx,ny):
     '''
@@ -57,7 +109,7 @@ def burnedAtSensorLocation(fires,validIgnitions,validSensors,nx,ny):
             
     # For each ignition
     for i, ig in enumerate(validIgnitions):
-        # The are possible sensor locations
+        # The are possible len(validSensors) possible sensor locations
         for s, ns in enumerate(validSensors):
             if fires[i,ns]>0.:
 
@@ -108,118 +160,241 @@ ny = 321
 # simulation data path
 simDataPath = f'./test-data/'
 
+
+simDataPath1 = f'./sims_p90_N/'
+simDataPath2 = f'./sims_p90_NE/'
+simDataPath3 = f'./sims_p90_E/'
+simDataPath4 = f'./sims_p90_SE/'
+simDataPath5 = f'./sims_p90_S/'
+simDataPath6 = f'./sims_p90_SW/'
+simDataPath7 = f'./sims_p90_W/'
+simDataPath8 = f'./sims_p90_NW/'
+simDataPaths = [simDataPath1,simDataPath2,simDataPath3,simDataPath4,simDataPath5,simDataPath6,simDataPath7,simDataPath8]
+
+frequencies = [0.073,0.1252,0.1204,0.1333,0.1127,0.1599,0.1859,0.0896]
+
 # Loading fire and sensor locations given the Cocentaina case-study
 validIgnitions = np.loadtxt('ignitions.txt').astype(int)
 nig = len(validIgnitions)
 validSensors = np.loadtxt('sensors.txt').astype(int)
 ns = len(validSensors)
 
+# Penalizations
+areaGlobalPenalization = 0
+for w in range(len(frequencies)):
+    maxAreas = np.loadtxt(f'maxAreas_{w}')
+    areaGlobalPenalization += np.sum(maxAreas)*frequencies[w]
 
-# Uncomment if fires/bAreas file is missing to recompute it
+penalizations = [5*3600,areaGlobalPenalization,0] # Maybe the penalization must be the largest value of the area of interest. This way, small fires have less penalization...
 
-#print("Computing simulated arrival times data")
-fires = loadingFires(simDataPath,validIgnitions,nx,ny)
-# Limiting fire arrival times at possible sensor locations
-firesAtSensors = fires[:,validSensors]
-np.save('firesAtSensors',firesAtSensors,allow_pickle=True) # For this case study this file is about 3.7 Gb of data.
-print("Loading simulated arrival times data")
-firesAtSensors = np.load('firesAtSensors.npy',allow_pickle=True)
+objectives1 = ['areas','areas']# ,'areas','areas','areas','areas','areas','areas','areas']#,'areas','areas']#,'areas','areas']
 
-#print("Computing burned areas at sensor locations")
-bAreas = burnedAtSensorLocation(fires,validIgnitions,validSensors,nx,ny)
-np.save('bAreas',bAreas,allow_pickle=True)
-print("Loading burned areas at sensor locations")
-bAreas = np.load('bAreas.npy',allow_pickle=True)
+objectives2 = ['sensors','sensors']# ,'sensors','sensors','sensors','sensors','sensors','sensors','sensors']#,'sensors','sensors']#,'sensors','sensors']#['sensors','sensors','sensors','sensors','sensors','sensors','sensors','sensors','sensors','sensors','sensors','sensors','sensors','sensors']#,'areas','areas','areas','areas']#,'sensors','sensors','sensors','sensors'] #,'areas','areas','areas','areas']#,['times','areas','speeds','times','areas','speeds']
 
+# constraints
+'''
+Ha - pixels
+12 192
 
-# Preparing data for optimization. Since data is sparse, during optimization the computation of objective functions may find as minimum null values, which obscure the optimization process.
-# This issue is solved by penalizing those pixels without wildfire presence with maximal values.
-firesAtSensors[np.where(firesAtSensors==0.)] = 5*3600 # Arrival times are extrapolated to the maximum simulated value (5 hours in this case, which is expressed in seconds, the units in which arrival times are presented)
-bAreas[np.where(bAreas==0.)] = np.amax(bAreas)    # Burned areas are extrapolated to the maximum burnt area of the whole wildfire dataset dataset 
+15 240
 
+18 288
 
+25 400
+
+30 480
+
+45 560
+
+60 960
+
+80 1280
+
+90 1440
+
+100 1600
+
+110 1760
+
+120 1920
+'''
+# constraints = [['noConstraint',0] this is how you set a no constraint
+#constraints = [['detectArea',0],['detectArea',480],['detectArea',800]]#[['detectArea',50],['detectArea',100],['detectArea',150],['detectArea',250],['detectArea',350],['detectArea',400],['detectArea',480],['detectArea',450],['detectArea',600],['detectArea',700],['detectArea',800],['detectArea',900],['detectArea',1500],['detectArea',1750],['detectArea',2000]]#,['detectTime',5400,400],['detectTime',7200,260,],['detectTime',9000,200],['detectTime',10800,180]]#,['detectTime',3600],['detectTime',2*3600],['detectTime',2*3600],['detectTime',2*3600]]
+constraints = [['nSensors',30],['nSensors',30]]#,['detectArea',200],['detectArea',300],['detectArea',400],['detectArea',1000],['detectArea',10000],['detectArea',321*321]]#,['detectArea',1440],['detectArea',1760],['detectArea',2080]]#,['detectArea',960],['detectArea',1280],['detectArea',1440],['detectArea',1600]]#,['detectArea',400],['detectArea',480],['detectArea',450],['detectArea',600],['detectArea',700],['detectArea',800],['detectArea',900],['detectArea',1500],['detectArea',1750],['detectArea',2000]]#,['detectTime',5400,400],['detectTime',7200,260,],['detectTime',9000,200],['detectTime',10800,180]]#,['detectTime',3600],['detectTime',2*3600],['detectTime',2*3600],['detectTime',2*3600]]
+nTerminations = [400000,400000]# ,20000,20000,20000,20000,20000,20000,20000]#,400000,400000]#,400000,400000]#[200000,200000,200000,200000,200000,200000,200000,200000,200000,200000,200000,200000,200000,200000,200000]
+
+npops = [150,300]# ,150,150,150,150,150,150,150]#,150,150]#,150,150] #[200,200,200,200,150,150,150,150,150,150,100,100,100,100,100]
+
+# Optimization loop
+
+# Paramters are being defined as lists. The loop is performed over the zipped lists
 # Choose optimization by times or burned areas
-optimizeBy = 'times'
-print('Optimizing by '+optimizeBy)
-if optimizeBy == 'times':
+    
+for objective1,objective2,constraint,nTermination,npopp,constraint in zip(objectives1,objectives2,constraints,nTerminations,npops,constraints):
 
-    # Fast optimization requires to pre-sort the different arrival times / burned areas from the different wildfires detected by each sensor. Wildfires do not spreading over a given sensor have their corresponding sensor location pixel penalized and do not matter and their sorting has no role.
-    indexes =  sortingComputation(nig,ns,firesAtSensors)
-    magnitude = firesAtSensors
+    # Adequating data to time constraint
 
-elif optimizeBy == 'bAreas':
+    # Uncomment if fires/bAreas file is missing to recompute it
+    firesAtSensors = [] # np.zeros((8,nig,ns))
+    bAreas = [] # np.zero s((8,nig,ns))
+    speedAtSensors = []
+    nigs = []
+    keep_igs = []
+    not_keep_igs = []
+    for i in range(8):
+        #print("Computing simulated arrival times data")
+        #fires = loadingFires(simDataPaths[i],validIgnitions,nx,ny)
+        # Limiting fire arrival times at possible sensor locations
+        #firesAtSensors[i,:,:] = fires[:,validSensors]
+        #np.save(f'firesAtSensors_{i}',firesAtSensors[i,:,:],allow_pickle=True) # For this case study this file is about 3.7 Gb of data.
+        print("Loading simulated arrival times data")
+        firesData = np.load(f'firesAtSensors_{i}.npy',allow_pickle=True)
 
-    # Fast optimization requires to pre-sort the different arrival times / burned areas from the different wildfires detected by each sensor. Wildfires do not spreading over a given sensor have their corresponding sensor location pixel penalized and do not matter and their sorting has no role.
-    indexes =  sortingComputation(nig,ns,bAreas)
-    magnitude = firesAtSensors
+        #print("Computing burned areas at sensor locations")
+        #bAreas[i,:,:] = burnedAtSensorLocation(fires,validIgnitions,validSensors,nx,ny)
+        #burnedArea2file(fires,i,constraint)
+        
+        #np.save(f'bAreas_{i}',bAreas[i,:,:],allow_pickle=True)
+        print("Loading burned areas at sensor locations")
+        bAreasData = np.load(f'bAreas_{i}.npy',allow_pickle=True)
+    
+        print("Filtering data")
+        keep_ig = []
+        not_keep_ig = []
+        # The criteria for ignoring a wildfire is that if wildfire approaches a sensor in more than 1 hour, it is slow enough to be detected by other means
+        if constraint[0] == 'detectTime':
+            for ii in range(nig):
+                try:
+                    nonZeroTimes = np.amin(firesData[ii,firesData[ii,:]>0]) # Non zero times
+                    # If fire is faster, then it is important to keep it in the analysis
+                    if nonZeroTimes <= constraint[1]:
+                        keep_ig.append(ii)
+                    else:
+                        not_keep_ig.append(ii)
+                except:
+                    # If nonZeroTimes is null value, then it means the fire did not even spread to a possible sensor location, therefore ignoring this wildfire.
+                    # Include it in not "keep"
+                    not_keep_ig.append(ii)
 
+        elif constraint[0] == 'detectArea':
+            for ii in range(nig):
+                try:
+                    nonZeroAreas = np.amin(bAreasData[ii,bAreasData[ii,:]>0]) # Non zero areas
+                    # If fire is faster, then it is important to keep it in the analysis
+                    if nonZeroAreas <= constraint[1]:
+                        keep_ig.append(ii)
+                    else:
+                        not_keep_ig.append(ii)
+                except:
+                    # If nonZeroTimes is null value, then it means the fire did not even spread to a possible sensor location, therefore ignoring this wildfire.
+                    # Include it in not "keep"
+                    not_keep_ig.append(ii)
+        else:
+            keep_ig = list(np.arange(nig,dtype=int))
 
-# The pattern of the matrixes is characteristic. Plot of their values to be sured that this process has been done accordingly
-plt.figure()
-plt.title(optimizeBy+' at sensors')
-plt.imshow(firesAtSensors)
-plt.imshow(bAreas)
-plt.show()
+        # New number of ignitions
+        nigs.append(len(keep_ig))
+        keep_igs.append(keep_ig)
+        not_keep_igs.append(not_keep_ig)
 
-plt.figure()
-plt.title('Sorted indexes pattern')
-plt.imshow(indexes)
-plt.show()
+        # Finally keeping the values as considered
+        # Now we do not omit the sensors that do not satisfy the time constraint, we just  not which ones are and then inside optimizer do such operation
+        #firesData = firesData[keep_ig,:]
+        #bAreasData = bAreasData[keep_ig,:]
 
+        # Computing average spread speed at detection
+        #speedData = -bAreasData/firesData # Negative because intention will be to maximize speed at detection
+        #speedData = -1./firesData # Negative because intention will be to maximize speed at detection
+        #speedData[speedData==-np.inf] = penalizations[2]
+        #speedData = np.nan_to_num(speedData,penalizations[2]) # Substitute Nan values by speed penalization.
 
-# This optimization methodology admits the weigthed contribution of several simulated scenarios at once.
-# For this test-case, the same set of simulated fires with the same wind conditions is used to mimic a multiple-weigthed scenario.
-# The aim is to take into account wildfire simulations computed using the different eight wind cardinal directions.
-# Each wind direction is weighted by the frequency of the wind rose chart and the input wind speed is a value representative during high fire risk conditions.
-weighedScenario =  np.zeros((8,indexes.shape[0],indexes.shape[1]))
-weightedIndexes = np.zeros((8,indexes.shape[0],indexes.shape[1]),dtype=int)
-for i in range(8):
-    weighedScenario[i,:,:] = magnitude
-    weightedIndexes[i,:,:] = indexes
+        firesAtSensors.append(firesData)
+        bAreas.append(bAreasData)
+        #speedAtSensors.append(speedData)
 
-# Equally distributed weights
-weights = np.ones(8)/8
+        # Preparing data for optimization. Since data is sparse, during optimization the computation of objective functions may find as minimum null values, which obscure the optimization process.
+        # This issue is solved by penalizing those pixels without wildfire presence with maximal values.
+        firesAtSensors[-1][np.where(firesAtSensors[-1]==0.)] = penalizations[0] # Arrival times are extrapolated to the maximum simulated value (5 hours in this case, which is expressed in seconds, the units in which arrival times are presented)
+        # Penalization areas is different, as each fire has different area. 
+        # Area penalization is the largest area per fire.
+        maxAreas = np.loadtxt(f'maxAreas_{i}')
+        for ji in range(len(bAreas[-1])):
+            bAreas[-1][ji,np.where(bAreas[-1][ji,:]==0.)] = maxAreas[ji]    # Burned areas are extrapolated to the maximum burnt area of the whole wildfire dataset dataset
+        # Speed at sensors is already penalized 
+    print(nigs)
 
-# Population values for optimization
-npop = 100 # Total population of solutions
-solutionsPareto = npop # Constrains how many solutions at the pareto front will be explored and returned.
-nOffsprings = 20 # Number of offsprings during evolutionary generation
+    # It is important for analysis purposes 
+    with open('keptFires', 'w') as file:
+        for list_igs in keep_igs:
+            file.write(' '.join(map(str, list_igs)) + '\n')
 
-# Instantiating Problem classes
-problem = so.optimalSensorLocWeigthed(ns,weighedScenario,weightedIndexes,npop,nOffsprings,optimizeBy,weights,solutionsPareto,so.numbaLoop)
+    # Save the lengths_list to another text file
+    with open('nigs', 'w') as file:
+        file.write(' '.join(map(str, nigs)) + '\n')
 
-# Finally, computation of the pareto front solutions
+    # Sorting
+    indexes = []
+    for i in range(8):
+        # Fast optimization requires to pre-sort the different arrival times / burned areas from the different wildfires detected by each sensor. Wildfires do not spreading over a given sensor have their corresponding sensor location pixel penalized and do not matter and their sorting has no role.
+        indexes.append(sortingComputation(nig,ns,firesAtSensors[i])) # Now we are not omitting any fire
+        
+    weights = frequencies
 
-nTermination = 10000
-algorithm = so.NSGA2(
-   pop_size=npop,
-    n_offsprings=nOffsprings,
-    sampling=so.BinaryRandomSampling(),
-    crossover=so.TwoPointCrossover(),
-    mutation=so.BitflipMutation(),
-    eliminate_duplicates=True
-)
+    # Population values for optimization
+    npop = npopp #constraint[1]
+    nOffsprings = 20 # Number of offsprings during evolutionary generation
 
-# During minimizating, it takes many generation before the constrained number of pareto solutions is found. Otherwise F, and X results will be None.
-termination = so.get_termination("n_gen", nTermination)
-res = so.minimize(problem,
-            algorithm,
-            termination,
-            seed = 1,
-            verbose=True)
+    # Instantiating Problem classes
+    problem = so.optimalSensorLocWeigthed(keep_igs,not_keep_igs,ns,firesAtSensors,bAreas,indexes,npop,nOffsprings,objective1,objective2,weights,constraint,penalizations,so.numbaLoop)
 
+    # Finally, computation of the pareto front solutions
 
-print("Best solution found: %s" % res.X.astype(int))
-print("Function value: %s" % res.F)
-print("Constraint violation: %s" % res.CV)
-Xt = res.X
-Ft = res.F
+    nTermination = nTermination
+    algorithm = so.NSGA2(
+    pop_size=npop,
+        n_offsprings=nOffsprings,
+        sampling=so.BinaryRandomSampling(),
+        crossover=so.TwoPointCrossover(),
+        mutation=so.BitflipMutation(),
+        eliminate_duplicates=True
+    )
 
-# calculate a hash to show that all executions end with the same result
-print("hash", res.F.sum())
+    # During minimizating, it takes many generation before the constrained number of pareto solutions is found. Otherwise F, and X results will be None.
+    termination = so.get_termination("n_gen", nTermination)
+    
+    res = so.minimize(problem,
+                algorithm,
+                termination,
+                callback=MyCallback(),
+                save_history=False,
+                seed = 1,
+                verbose=True)
 
-plt.figure(figsize=(10, 10))
-plt.scatter( res.F[:, 0],  res.F[:, 1], s=30)
-plt.title("Objective Space")
-plt.show()
+    # Creat animation
+    #ma.animCase1(res.algorithm.callback,npop, ns, nig, validIgnitions, indexes, firesAtSensors, bAreas, penalizations,objective1,objective2,constraint,nTermination)
+    # Save the object to a file using pickle
+    with open(f'pickle_{objective1}_{objective2}_c_{constraint[0]}_v_{constraint[1]}_{nTermination}_npop_{npop}.pkl', 'wb') as file:
+        pickle.dump(res.algorithm.callback, file)
 
+    try:
+
+        # Next statement gives problems
+        #n_iters = res.algorithm.callback.data['n_iters']
+
+        print("Best solution found: %s" % res.X.astype(int))
+        print("Function value: %s" % res.F)
+        print("Constraint violation: %s" % res.CV)
+
+        Xt = res.X
+        Ft = res.F
+        try:
+            np.savetxt(f'x_opt_{objective1}_{objective2}_c_{constraint[0]}_v_{constraint[1]}_{nTermination}_npop_{npop}',Xt)
+            np.savetxt(f'Ft_opt_{objective1}_{objective2}_c_{constraint[0]}_v_{constraint[1]}_{nTermination}_npop_{npop}',Ft)
+        except:
+            np.savetxt(f'x_opt_{n_iters}',Xt)
+            np.savetxt(f'Ft_opt_{n_iters}',Ft)
+        # calculate a hash to show that all executions end with the same result
+        print("hash", res.F.sum())
+    except:
+        print("No pareto was found")
+   
