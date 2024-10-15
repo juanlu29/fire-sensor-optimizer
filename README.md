@@ -4,7 +4,9 @@ Along with the class, a Python script optimizingScript.py instantiates the Pymoo
 
 ![alt text](https://github.com/juanlu29/fire-sensor-optimizer/blob/main/grid_ignitions_sensors_zoomed.png?raw=true)
 
-The computation of fire behaviour follows the methodology of (Gómez-González et al. 2024). Each ignition corresponds to a wildfire simulated for 5 hours. As stated above, for optimization, one can search optimal sensor configurations based on minimizing fire arrival time or wildfire-burned areas at sensor detection. The tabulated data necessary to run the optimization is zipped in the caseStudy.zip file
+The computation of fire behaviour follows the methodology of (Gómez-González et al. 2024). Each ignition corresponds to a wildfire simulated for 5 hours. As stated above, for optimization, one can search optimal sensor configurations based on minimizing fire arrival time or wildfire-burned areas at sensor detection. 
+
+The paper describes a methodology to select high-risk fire-weather scenarios. As a result, simulations are run for a wind speed with cardinal wind direction. These simulations are uploades as zipped files Sims_p90_X.zip, where X stands for N (North), S(South), SW (South-west), and so on. Then, the maximum burnt area per wildfire are stored in the max_ba.zip file. Only a series of tabulated data is necessary to run the optimization. This information is zipped in the caseStudy.zip file.
 
 To run this example, a series of Python libraries are needed. The environment.yml files replicate the conda environment in which this optimization is performed. 
 
