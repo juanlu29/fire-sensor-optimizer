@@ -16,4 +16,4 @@ References,
 
 (Gómez-González et al. 2024); Juan Luis Gómez-González, Alexis Cantizano, Raquel Caro-Carretero, Mario Castro, Leveraging national forestry data repositories to advocate wildfire modelling towards simulation-driven risk assessment, Ecological Indicators, Volume 158, 2024, 111306, ISSN 1470-160X, doi=https://doi.org/10.1016/j.ecolind.2023.111306. url=https://www.sciencedirect.com/science/article/pii/S1470160X23014486.
 
-J. Blank and K. Deb, pymoo: Multi-Objective Optimization in Python, in IEEE Access, vol. 8, pp. 89497-89509, 2020, doi: 10.1109/ACCESS.2020.2990567
+ (J. Blank and K. Deb, 2020); J. Blank and K. Deb, pymoo: Multi-Objective Optimization in Python, in IEEE Access, vol. 8, pp. 89497-89509, 2020, doi: 10.1109/ACCESS.2020.2990567
