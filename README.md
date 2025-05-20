@@ -19,3 +19,19 @@ References,
 (Gómez-González et al. 2024); Juan Luis Gómez-González, Alexis Cantizano, Raquel Caro-Carretero, Mario Castro, Leveraging national forestry data repositories to advocate wildfire modelling towards simulation-driven risk assessment, Ecological Indicators, Volume 158, 2024, 111306, ISSN 1470-160X, doi=https://doi.org/10.1016/j.ecolind.2023.111306. url=https://www.sciencedirect.com/science/article/pii/S1470160X23014486.
 
  (J. Blank and K. Deb, 2020); J. Blank and K. Deb, pymoo: Multi-Objective Optimization in Python, in IEEE Access, vol. 8, pp. 89497-89509, 2020, doi: 10.1109/ACCESS.2020.2990567
+
+
+If you find this data and approach useful, please cite the following article
+
+@article{GOMEZGONZALEZ2025113509,
+title = {Simulated fire observables as indicators for optimizing wireless sensor networks in wildfire risk monitoring},
+journal = {Ecological Indicators},
+volume = {175},
+pages = {113509},
+year = {2025},
+issn = {1470-160X},
+doi = {https://doi.org/10.1016/j.ecolind.2025.113509},
+url = {https://www.sciencedirect.com/science/article/pii/S1470160X2500439X},
+author = {Juan Luis Gómez-González and Effie Marcoulaki and Alexis Cantizano and Myrto Konstantinidou and Raquel Caro and Mario Castro},
+keywords = {Wildfire simulation, Optimization, Early wildfire detection system, Wireless sensor network, NSGA-II},
+}
