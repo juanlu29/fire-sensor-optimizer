@@ -23,6 +23,9 @@ References,
 
 If you find this data and approach useful, please cite the following article
 
+
+````{verbatim, lang = "latex"}
+
 @article{GOMEZGONZALEZ2025113509,
 title = {Simulated fire observables as indicators for optimizing wireless sensor networks in wildfire risk monitoring},
 journal = {Ecological Indicators},
@@ -35,3 +38,5 @@ url = {https://www.sciencedirect.com/science/article/pii/S1470160X2500439X},
 author = {Juan Luis Gómez-González and Effie Marcoulaki and Alexis Cantizano and Myrto Konstantinidou and Raquel Caro and Mario Castro},
 keywords = {Wildfire simulation, Optimization, Early wildfire detection system, Wireless sensor network, NSGA-II},
 }
+
+````
